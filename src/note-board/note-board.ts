@@ -90,11 +90,10 @@ export class NoteBoard extends LitElement {
   private sortable: Sortable | undefined = undefined
 
   @provide({ context: noteBoardContext })
-  private provider!: { setValue: (v: NoteBoardContextValue) => void }
+  private providedContext?: NoteBoardContextValue
 
   override connectedCallback(): void {
     super.connectedCallback()
-    // listen for child events from `note-card`
     this.addEventListener('note-save', this.onNoteSave as EventListener)
     this.addEventListener('note-delete', this.onNoteDelete as EventListener)
   }
@@ -125,9 +124,7 @@ export class NoteBoard extends LitElement {
   })
 
   protected override updated(): void {
-    if (this.provider && typeof (this.provider as any).setValue === 'function') {
-      this.provider.setValue(this.createContextValue())
-    }
+    this.providedContext = this.createContextValue()
     this.installSortable()
   }
 
@@ -139,9 +136,7 @@ export class NoteBoard extends LitElement {
         title: detail.title,
         bodyHtml: detail.bodyHtml,
       })
-      if (this.provider && typeof (this.provider as any).setValue === 'function') {
-        this.provider.setValue(this.createContextValue())
-      }
+      this.providedContext = this.createContextValue()
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
     }
@@ -152,9 +147,7 @@ export class NoteBoard extends LitElement {
     if (!detail || !detail.id) return
     try {
       await this.createContextValue().deleteNote(detail.id)
-      if (this.provider && typeof (this.provider as any).setValue === 'function') {
-        this.provider.setValue(this.createContextValue())
-      }
+      this.providedContext = this.createContextValue()
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
     }

@@ -1,11 +1,13 @@
 import { css, html, LitElement } from 'lit'
 import { customElement, property, state } from 'lit/decorators.js'
+import { consume } from '@lit/context'
 import type { Note } from './types'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
 import { sanitizeHtml } from './sanitizer'
+import { noteBoardContext, type NoteBoardContextValue } from './context'
 
 @customElement('note-card')
 export class NoteCard extends LitElement {
@@ -45,6 +47,9 @@ export class NoteCard extends LitElement {
   @property({ type: Object }) note!: Note
   @property({ type: Boolean }) selected = false
 
+  @consume({ context: noteBoardContext, subscribe: true })
+  context?: NoteBoardContextValue
+
   @state() private editing = false
   @state() private draftTitle = ''
   @state() private draftBody = ''
@@ -66,17 +71,34 @@ export class NoteCard extends LitElement {
   }
 
   private async save() {
-    // ensure latest editor HTML is captured
-    if (this.editorInstance) this.draftBody = this.editorInstance.getHTML()
+    if (this.editorInstance) {
+      this.draftBody = this.editorInstance.getHTML()
+    }
+
     const clean = sanitizeHtml(this.draftBody)
-    // Emit a custom event so parent/context can handle saving
-    this.dispatchEvent(
-      new CustomEvent('note-save', {
-        detail: { id: this.note.id, title: this.draftTitle, bodyHtml: clean },
-        bubbles: true,
-        composed: true,
-      }),
-    )
+
+    if (!this.context) {
+      this.dispatchEvent(
+        new CustomEvent('note-save', {
+          detail: { id: this.note.id, title: this.draftTitle, bodyHtml: clean },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+      this.editing = false
+      this.destroyEditor()
+      return
+    }
+
+    try {
+      await this.context.updateNote(this.note.id, {
+        title: this.draftTitle,
+        bodyHtml: clean,
+      })
+    } catch (error) {
+      console.error('Failed to save note:', error)
+    }
+
     this.editing = false
     this.destroyEditor()
   }
@@ -87,10 +109,23 @@ export class NoteCard extends LitElement {
     this.destroyEditor()
   }
 
-  private handleDelete() {
-    this.dispatchEvent(
-      new CustomEvent('note-delete', { detail: { id: this.note.id }, bubbles: true, composed: true }),
-    )
+  private async handleDelete() {
+    if (!this.context) {
+      this.dispatchEvent(
+        new CustomEvent('note-delete', {
+          detail: { id: this.note.id },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+      return
+    }
+
+    try {
+      await this.context.deleteNote(this.note.id)
+    } catch (error) {
+      console.error('Failed to delete note:', error)
+    }
   }
 
   private createEditor() {
