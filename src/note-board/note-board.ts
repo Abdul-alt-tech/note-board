@@ -90,7 +90,7 @@ export class NoteBoard extends LitElement {
   private sortable: Sortable | undefined = undefined
 
   @provide({ context: noteBoardContext })
-  private providedContext?: NoteBoardContextValue
+  private _providedContext?: NoteBoardContextValue
 
   override connectedCallback(): void {
     super.connectedCallback()
@@ -124,7 +124,8 @@ export class NoteBoard extends LitElement {
   })
 
   protected override updated(): void {
-    this.providedContext = this.createContextValue()
+    this._providedContext = this.createContextValue()
+    void this._providedContext
     this.installSortable()
   }
 
@@ -136,7 +137,7 @@ export class NoteBoard extends LitElement {
         title: detail.title,
         bodyHtml: detail.bodyHtml,
       })
-      this.providedContext = this.createContextValue()
+      this._providedContext = this.createContextValue()
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
     }
@@ -147,7 +148,7 @@ export class NoteBoard extends LitElement {
     if (!detail || !detail.id) return
     try {
       await this.createContextValue().deleteNote(detail.id)
-      this.providedContext = this.createContextValue()
+      this._providedContext = this.createContextValue()
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err)
     }
